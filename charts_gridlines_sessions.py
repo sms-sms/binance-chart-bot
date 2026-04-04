@@ -251,10 +251,15 @@ def run_scan():
 
         try:
             outpath = save_candlestick_image(df, symbol)
-            print(f'[ok] {symbol} -> {outpath}')
-            
-            send_telegram_photo(outpath)
-            processed += 1
+
+            if outpath:
+                print(f'[ok] {symbol} -> {outpath}')
+                send_telegram_photo(outpath)
+                processed += 1
+            else:
+                print(f'[skip] {symbol} no valid setup')
+                skipped.append(symbol)
+
         except Exception as e:
             print(f'[skip] {symbol} plot error: {e}')
             skipped.append(symbol)
