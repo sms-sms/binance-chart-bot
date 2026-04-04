@@ -208,30 +208,6 @@ def save_candlestick_image(df, symbol):
     return outpath
 
 
-def run_scan():
-    print('\n=== NEW SCAN STARTED ===')
-
-    for symbol in SYMBOLS:
-        try:
-            df = fetch_klines(symbol)
-
-            if df is None:
-                print(f'[skip] {symbol} no data')
-                continue
-
-            result = save_candlestick_image(df, symbol)
-
-            if result:
-                print(f'[ok] {symbol} -> {result}')
-            else:
-                print(f'[skip] {symbol} no valid setup')
-
-        except Exception as e:
-            print(f'[error] {symbol}: {e}')
-
-        time.sleep(SLEEP_BETWEEN_CALLS)
-
-
 #def main():
     #while True:
         #run_scan()
