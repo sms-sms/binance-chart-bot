@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
 # -------- CONFIG --------
-BINANCE_REST = 'https://api.binance.com'
+BINANCE_REST = 'https://data-api.binance.vision'
 INTERVAL = '30m'
 CANDLES_LIMIT = 150
 OUTPUT_DIR = 'images'
