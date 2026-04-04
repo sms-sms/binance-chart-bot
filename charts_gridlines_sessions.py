@@ -1,6 +1,3 @@
-import matplotlib
-matplotlib.use('Agg')
-
 import os
 import time
 import requests
@@ -15,112 +12,202 @@ INTERVAL = '30m'
 CANDLES_LIMIT = 150
 OUTPUT_DIR = 'images'
 SLEEP_BETWEEN_CALLS = 0.35
+SCAN_INTERVAL_SECONDS = 1800
 SYMBOLS = ['BTCUSDT', 'ETHUSDT']
-SESSION_TIME = '00:00'
+SESSION_TIME = '00:00'  # NEW session
 # ------------------------
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 session = requests.Session()
+session.headers.update({'User-Agent': 'binance-candles-to-png/1.0'})
 
 
-# ---------- TELEGRAM ----------
-def send_telegram_photo(file_path, caption=""):
-    token = os.environ.get("TELEGRAM_TOKEN")
-    chat_id = os.environ.get("CHAT_ID")
-
-    url = f"https://api.telegram.org/bot{token}/sendPhoto"
-
-    with open(file_path, "rb") as f:
-        r = requests.post(
-            url,
-            data={"chat_id": chat_id, "caption": caption},
-            files={"photo": f}
-        )
-
-    print("Telegram status:", r.status_code)
-
-
-# ---------- DATA ----------
-def fetch_klines(symbol):
+def fetch_klines(symbol, interval=INTERVAL, limit=CANDLES_LIMIT):
     url = BINANCE_REST + '/api/v3/klines'
-    params = {'symbol': symbol, 'interval': INTERVAL, 'limit': CANDLES_LIMIT}
-
+    params = {'symbol': symbol, 'interval': interval, 'limit': limit}
     r = session.get(url, params=params, timeout=20)
     r.raise_for_status()
+    klines = r.json()
 
-    df = pd.DataFrame(r.json(), columns=[
-        'open_time','open','high','low','close','volume',
-        'close_time','qav','trades','tbav','tqav','ignore'
+    if not isinstance(klines, list) or len(klines) < limit:
+        return None
+
+    df = pd.DataFrame(klines, columns=[
+        'open_time', 'open', 'high', 'low', 'close', 'volume',
+        'close_time', 'quote_asset_volume', 'num_trades',
+        'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
     ])
 
     df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
 
-    for col in ['open','high','low','close','volume']:
+    for col in ['open', 'high', 'low', 'close', 'volume']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
     df.set_index('open_time', inplace=True)
-    return df[['open','high','low','close','volume']]
+    return df[['open', 'high', 'low', 'close', 'volume']]
 
 
-# ---------- LOGIC ----------
-def get_session_extremes(df):
-    df['date'] = df.index.floor('1D')
+# Session vertical line (00:00)
+def get_session_lines(df):
+    return [ts for ts in df.index if ts.strftime('%H:%M') == SESSION_TIME]
 
-    if df['date'].nunique() < 2:
+
+# ✅ Previous day/session high/low WITHOUT shifting
+def get_session_extremes_with_index(df):
+    df_copy = df.copy()
+
+    df_copy['date'] = df_copy.index.floor('1D')
+
+    if df_copy['date'].nunique() < 2:
         return None
 
-    prev_date = df['date'].unique()[-2]
-    session_data = df[df['date'] == prev_date]
+    prev_date = df_copy['date'].unique()[-2]
+    session_data = df_copy[df_copy['date'] == prev_date]
+
+    high_idx = session_data['high'].idxmax()
+    low_idx = session_data['low'].idxmin()
 
     return {
-        'high': session_data['high'].max(),
-        'low': session_data['low'].min()
+        'high': float(session_data.loc[high_idx, 'high']),
+        'low': float(session_data.loc[low_idx, 'low']),
+        'high_idx': high_idx,
+        'low_idx': low_idx
     }
 
 
-def check_setup(df, sh, sl):
-    last = df.iloc[-1]
+# Detection logic (same as before)
+def check_break_condition(df, sh, sl, lookback=10):
+    if sh is None or sl is None:
+        return False, None
 
-    if last['close'] > sh:
-        return 'bullish_break'
+    recent = df.tail(lookback)
 
-    if last['close'] < sl:
-        return 'bearish_break'
+    # Sweep first
+    for i in range(1, len(recent)):
+        prev_close = recent['close'].iloc[i - 1]
+        curr_close = recent['close'].iloc[i]
 
-    return None
+        if prev_close > sh and curr_close < sh:
+            return True, 'bearish_sweep'
+
+        if prev_close < sl and curr_close > sl:
+            return True, 'bullish_sweep'
+
+    # Breakouts
+    if ((recent['high'] > sh) & (recent['close'] > sh)).any():
+        return True, 'bullish_break'
+
+    if ((recent['low'] < sl) & (recent['close'] < sl)).any():
+        return True, 'bearish_break'
+
+    return False, None
 
 
-# ---------- CHART ----------
-def save_chart(df, symbol, direction, sh, sl):
+def save_candlestick_image(df, symbol):
+    session_data = get_session_extremes_with_index(df)
+
+    if session_data is None:
+        return None
+
+    sh = session_data['high']
+    sl = session_data['low']
+
+    valid, direction = check_break_condition(df, sh, sl)
+
+    if not valid:
+        return None
+
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M')
     filename = f"{symbol}_{direction}_{timestamp}.png"
-    path = os.path.join(OUTPUT_DIR, filename)
+    outpath = os.path.join(OUTPUT_DIR, filename)
 
-    mc = mpf.make_marketcolors(up='g', down='r')
-    style = mpf.make_mpf_style(marketcolors=mc)
+    mc = mpf.make_marketcolors(
+        up='g',
+        down='r',
+        edge='i',
+        wick='i',
+        volume={'up': 'g', 'down': 'r'}
+    )
+
+    style = mpf.make_mpf_style(
+        marketcolors=mc,
+        gridstyle=':',
+        gridcolor='gray',
+        rc={
+            'axes.grid': True,
+            'grid.alpha': 0.4,
+            'grid.linewidth': 0.5
+        }
+    )
+
+    session_lines = get_session_lines(df)
+
+    vlines = dict(
+        vlines=session_lines,
+        colors='blue',
+        linestyle='dashed',
+        linewidths=0.7,
+        alpha=0.6
+    )
 
     fig, axes = mpf.plot(
         df,
         type='candle',
         style=style,
         volume=True,
-        returnfig=True
+        figsize=(8, 6),
+        panel_ratios=(4, 1),
+        returnfig=True,
+        vlines=vlines
     )
 
     ax = axes[0]
+    vax = axes[2]
 
-    # PDH / PDL lines
-    ax.axhline(sh, linestyle='dotted', color='orange')
-    ax.axhline(sl, linestyle='dotted', color='green')
+    # Horizontal lines (index-based)
+    high_pos = df.index.get_loc(session_data['high_idx'])
+    start_high = max(0, high_pos - 3)
 
-    fig.savefig(path)
+    ax.hlines(
+        y=sh,
+        xmin=start_high,
+        xmax=len(df) - 1,
+        colors='orange',
+        linestyles='dotted',
+        linewidth=1
+    )
+
+    low_pos = df.index.get_loc(session_data['low_idx'])
+    start_low = max(0, low_pos - 3)
+
+    ax.hlines(
+        y=sl,
+        xmin=start_low,
+        xmax=len(df) - 1,
+        colors='green',
+        linestyles='dotted',
+        linewidth=1
+    )
+
+    # Formatting
+    ax.xaxis.set_major_locator(MaxNLocator(10))
+    ax.yaxis.set_major_locator(MaxNLocator(10))
+
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    vax.set_xticklabels([])
+    vax.set_yticklabels([])
+
+    ax.tick_params(length=0)
+    vax.tick_params(length=0)
+
+    fig.savefig(outpath, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
-    return path
+    return outpath
 
 
-# ---------- MAIN ----------
 def run_scan():
     print('\n=== NEW SCAN STARTED ===')
 
@@ -128,28 +215,16 @@ def run_scan():
         try:
             df = fetch_klines(symbol)
 
-            session_data = get_session_extremes(df)
-            if not session_data:
-                print(f'[skip] {symbol} no session data')
+            if df is None:
+                print(f'[skip] {symbol} no data')
                 continue
 
-            sh = session_data['high']
-            sl = session_data['low']
+            result = save_candlestick_image(df, symbol)
 
-            direction = check_setup(df, sh, sl)
-
-            if not direction:
-                print(f'[skip] {symbol} no setup')
-                continue
-
-            path = save_chart(df, symbol, direction, sh, sl)
-
-            print(f'[ok] {symbol} -> {path}')
-
-            send_telegram_photo(
-                path,
-                caption=f"{symbol} {direction} (30m)"
-            )
+            if result:
+                print(f'[ok] {symbol} -> {result}')
+            else:
+                print(f'[skip] {symbol} no valid setup')
 
         except Exception as e:
             print(f'[error] {symbol}: {e}')
@@ -157,9 +232,14 @@ def run_scan():
         time.sleep(SLEEP_BETWEEN_CALLS)
 
 
+#def main():
+    #while True:
+        #run_scan()
+        #print(f'\nSleeping for {SCAN_INTERVAL_SECONDS / 60} minutes...')
+        #time.sleep(SCAN_INTERVAL_SECONDS)
+        
 def main():
     run_scan()
-
 
 if __name__ == '__main__':
     main()
