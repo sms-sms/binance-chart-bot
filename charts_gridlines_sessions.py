@@ -238,6 +238,57 @@ def run_scan():
         #print(f'\nSleeping for {SCAN_INTERVAL_SECONDS / 60} minutes...')
         #time.sleep(SCAN_INTERVAL_SECONDS)
         
+def send_telegram_photo(file_path):
+    import os
+    import requests
+
+    token = os.environ.get("TELEGRAM_TOKEN")
+    chat_id = os.environ.get("CHAT_ID")
+
+    url = f"https://api.telegram.org/bot{token}/sendPhoto"
+
+    with open(file_path, "rb") as f:
+        r = requests.post(url, data={"chat_id": chat_id}, files={"photo": f})
+
+    print("Telegram status:", r.status_code)
+
+def run_scan():
+    print('\n=== NEW SCAN STARTED ===')
+
+    processed = 0
+    skipped = []
+
+    for symbol in SYMBOLS:
+        try:
+            df = fetch_klines(symbol)
+        except Exception as e:
+            print(f'[skip] {symbol} API error: {e}')
+            skipped.append(symbol)
+            time.sleep(SLEEP_BETWEEN_CALLS)
+            continue
+
+        if df is None:
+            print(f'[skip] {symbol} insufficient candles')
+            skipped.append(symbol)
+            time.sleep(SLEEP_BETWEEN_CALLS)
+            continue
+
+        try:
+            outpath = save_candlestick_image(df, symbol)
+            print(f'[ok] {symbol} -> {outpath}')
+            
+            send_telegram_photo(outpath)
+            processed += 1
+        except Exception as e:
+            print(f'[skip] {symbol} plot error: {e}')
+            skipped.append(symbol)
+
+        time.sleep(SLEEP_BETWEEN_CALLS)
+
+    print('\nScan complete')
+    print('Saved:', processed)
+    print('Skipped:', len(skipped))
+
 def main():
     run_scan()
 
