@@ -13,7 +13,7 @@ CANDLES_LIMIT = 150
 OUTPUT_DIR = 'images'
 SLEEP_BETWEEN_CALLS = 0.35
 SCAN_INTERVAL_SECONDS = 1800  # 30 minutes
-SYMBOLS = ['BTCUSDT', 'ETHUSDT']
+SYMBOLS = ['XRPUSDT', 'SOLUSDT']
 SESSION_TIME = '00:00'  # Sri Lanka session time
 # ------------------------
 
