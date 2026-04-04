@@ -129,6 +129,19 @@ def save_candlestick_image(df, symbol):
 
     return outpath
 
+def send_telegram_photo(file_path):
+    import os
+    import requests
+
+    token = os.environ.get("TELEGRAM_TOKEN")
+    chat_id = os.environ.get("CHAT_ID")
+
+    url = f"https://api.telegram.org/bot{token}/sendPhoto"
+
+    with open(file_path, "rb") as f:
+        r = requests.post(url, data={"chat_id": chat_id}, files={"photo": f})
+
+    print("Telegram status:", r.status_code)
 
 def run_scan():
     print('\n=== NEW SCAN STARTED ===')
@@ -154,6 +167,8 @@ def run_scan():
         try:
             outpath = save_candlestick_image(df, symbol)
             print(f'[ok] {symbol} -> {outpath}')
+            
+            send_telegram_photo(outpath)
             processed += 1
         except Exception as e:
             print(f'[skip] {symbol} plot error: {e}')
