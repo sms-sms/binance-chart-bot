@@ -136,9 +136,6 @@ def send_telegram_photo(file_path):
     token = os.environ.get("TELEGRAM_TOKEN")
     chat_id = os.environ.get("CHAT_ID")
 
-    print("DEBUG TOKEN:", token)
-    print("DEBUG CHAT_ID:", chat_id)
-
     url = f"https://api.telegram.org/bot{token}/sendPhoto"
 
     with open(file_path, "rb") as f:
