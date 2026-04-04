@@ -26,4 +26,7 @@ jobs:
           pip install pandas matplotlib mplfinance requests
 
       - name: Run script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python charts_gridlines_sessions.py
