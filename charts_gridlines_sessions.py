@@ -82,7 +82,7 @@ def check_break_condition(df, sh, sl):
         return False, None
 
     # Need at least 2 candles
-    if len(df) < 2:
+    if len(df) < 25:
         return False, None
 
     prev = df.iloc[-22] #-2
