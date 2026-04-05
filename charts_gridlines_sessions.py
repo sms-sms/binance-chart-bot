@@ -82,11 +82,11 @@ def check_break_condition(df, sh, sl):
         return False, None
 
     # Need at least 2 candles
-    if len(df) < 2:
+    if len(df) < 3:
         return False, None
 
-    prev = df.iloc[-25] #-2
-    last = df.iloc[-24] #-1   so -1 = current (not closed)
+    prev = df.iloc[-3] #
+    last = df.iloc[-2] #  because -1 = current (not closed)
 
     prev_close = prev['close']
     last_close = last['close']
