@@ -76,7 +76,7 @@ def get_session_extremes_with_index(df):
     }
 
 
-def check_break_condition(df, sh, sl, lookback=5, shift=23):
+def check_break_condition(df, sh, sl, lookback=5, shift=25):
     if sh is None or sl is None:
         return False, None
 
