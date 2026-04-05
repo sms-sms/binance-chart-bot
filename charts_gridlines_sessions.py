@@ -76,29 +76,39 @@ def get_session_extremes_with_index(df):
     }
 
 
-# Detection logic (same as before)
-def check_break_condition(df, sh, sl, lookback=10):
+# Detection logic (last candle only)
+def check_break_condition(df, sh, sl):
     if sh is None or sl is None:
         return False, None
 
-    recent = df.tail(lookback)
+    # Need at least 2 candles
+    if len(df) < 2:
+        return False, None
 
-    # Sweep first
-    for i in range(1, len(recent)):
-        prev_close = recent['close'].iloc[i - 1]
-        curr_close = recent['close'].iloc[i]
+    prev = df.iloc[-24] #-2
+    last = df.iloc[-23] #-1
 
-        if prev_close > sh and curr_close < sh:
-            return True, 'bearish_sweep'
+    prev_close = prev['close']
+    last_close = last['close']
+    last_high = last['high']
+    last_low = last['low']
 
-        if prev_close < sl and curr_close > sl:
-            return True, 'bullish_sweep'
+    # -------- SWEEPS --------
+    # Bearish sweep (closed above PDH, then last closes below)
+    if prev_close > sh and last_close < sh:
+        return True, 'bearish_sweep'
 
-    # Breakouts
-    if ((recent['high'] > sh) & (recent['close'] > sh)).any():
+    # Bullish sweep (closed below PDL, then last closes above)
+    if prev_close < sl and last_close > sl:
+        return True, 'bullish_sweep'
+
+    # -------- BREAKOUTS --------
+    # Bullish breakout (first candle closing above PDH)
+    if last_high > sh and last_close > sh and prev_close <= sh:
         return True, 'bullish_break'
 
-    if ((recent['low'] < sl) & (recent['close'] < sl)).any():
+    # Bearish breakout (first candle closing below PDL)
+    if last_low < sl and last_close < sl and prev_close >= sl:
         return True, 'bearish_break'
 
     return False, None
@@ -251,10 +261,15 @@ def run_scan():
 
         try:
             outpath = save_candlestick_image(df, symbol)
-            print(f'[ok] {symbol} -> {outpath}')
-            
-            send_telegram_photo(outpath)
-            processed += 1
+
+            if outpath:
+                print(f'[ok] {symbol} -> {outpath}')
+                send_telegram_photo(outpath)
+                processed += 1
+            else:
+                print(f'[skip] {symbol} no valid setup')
+                skipped.append(symbol)
+
         except Exception as e:
             print(f'[skip] {symbol} plot error: {e}')
             skipped.append(symbol)
