@@ -85,8 +85,8 @@ def check_break_condition(df, sh, sl):
     if len(df) < 2:
         return False, None
 
-    prev = df.iloc[-23] #-2
-    last = df.iloc[-22] #-1
+    prev = df.iloc[-22] #-2
+    last = df.iloc[-21] #-1
 
     prev_close = prev['close']
     last_close = last['close']
