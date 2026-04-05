@@ -76,36 +76,31 @@ def get_session_extremes_with_index(df):
     }
 
 
-# Detection logic (any candle in lookback + last candle confirmation)
-def check_break_condition(df, sh, sl, lookback=5):
+def check_break_condition(df, sh, sl, lookback=5, shift=24):
     if sh is None or sl is None:
         return False, None
 
-    # Need enough candles (lookback + last closed)
-    if len(df) < (lookback + 2):
+    # Need enough candles
+    if len(df) < (lookback + 2 + shift):
         return False, None
 
-    # Last closed candle
-    last = df.iloc[-2]
+    # Simulated "last closed candle"
+    last = df.iloc[-2 - shift]
     last_close = last['close']
     last_high = last['high']
     last_low = last['low']
 
-    # Lookback candles (excluding last closed)
-    recent = df.iloc[-(lookback + 2):-2]
+    # Lookback candles before that
+    recent = df.iloc[-(lookback + 2 + shift):-(2 + shift)]
 
-    # -------- SWEEP DETECTION --------
-    # Bearish sweep: any candle closed above PDH, then last closes below
+    # -------- SWEEP --------
     if (recent['close'] > sh).any() and last_close < sh:
         return True, 'bearish_sweep'
 
-    # Bullish sweep: any candle closed below PDL, then last closes above
     if (recent['close'] < sl).any() and last_close > sl:
         return True, 'bullish_sweep'
 
-    # -------- BREAKOUT DETECTION --------
-    # Bullish breakout: last candle breaks & closes above PDH,
-    # and no previous candle already closed above
+    # -------- BREAK --------
     if (
         last_high > sh and
         last_close > sh and
@@ -113,8 +108,6 @@ def check_break_condition(df, sh, sl, lookback=5):
     ):
         return True, 'bullish_break'
 
-    # Bearish breakout: last candle breaks & closes below PDL,
-    # and no previous candle already closed below
     if (
         last_low < sl and
         last_close < sl and
