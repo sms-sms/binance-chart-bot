@@ -5,7 +5,7 @@ env:
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "1,31 * * * *"
   workflow_dispatch:
 
 jobs:
