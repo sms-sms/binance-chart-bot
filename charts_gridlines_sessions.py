@@ -13,7 +13,7 @@ CANDLES_LIMIT = 150
 OUTPUT_DIR = 'images'
 SLEEP_BETWEEN_CALLS = 0.35
 SCAN_INTERVAL_SECONDS = 1800
-SYMBOLS = ['BTCUSDT', 'ETHUSDT']
+SYMBOLS = ['ALGOUSDT', 'ETHUSDT']
 SESSION_TIME = '00:00'  # NEW session
 # ------------------------
 
@@ -174,6 +174,7 @@ def save_candlestick_image(df, symbol):
         panel_ratios=(4, 1),
         returnfig=True,
         vlines=vlines
+        title=f"{symbol} ({INTERVAL})"
     )
 
     ax = axes[0]
