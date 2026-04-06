@@ -13,7 +13,7 @@ CANDLES_LIMIT = 150
 OUTPUT_DIR = 'images'
 SLEEP_BETWEEN_CALLS = 0.35
 SCAN_INTERVAL_SECONDS = 1800
-SYMBOLS = ['ALGOUSDT', 'ETHUSDT']
+SYMBOLS = ['BTCUSDT', 'ETHUSDT']
 SESSION_TIME = '00:00'  # NEW session
 # ------------------------
 
@@ -76,7 +76,7 @@ def get_session_extremes_with_index(df):
     }
 
 
-def check_break_condition(df, sh, sl, lookback=5, shift=16):
+def check_break_condition(df, sh, sl, lookback=5, shift=0):
     if sh is None or sl is None:
         return False, None
 
