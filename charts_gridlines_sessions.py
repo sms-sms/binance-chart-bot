@@ -174,9 +174,10 @@ def save_candlestick_image(df, symbol):
         panel_ratios=(4, 1),
         returnfig=True,
         vlines=vlines
-        fig.suptitle(f"{symbol} ({INTERVAL})", fontsize=12)
     )
 
+    fig.suptitle(f"{symbol} ({INTERVAL})", fontsize=12)
+    
     ax = axes[0]
     vax = axes[2]
 
