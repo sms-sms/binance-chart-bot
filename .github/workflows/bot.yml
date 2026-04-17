@@ -42,3 +42,11 @@ jobs:
           git add last_run_slot.txt || true
           git commit -m "update slot state" || true
           git push || true
+
+      - name: Save state files
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add last_run_slot.txt heartbeat.txt || true
+          git commit -m "update state files" || true
+          git push || true
