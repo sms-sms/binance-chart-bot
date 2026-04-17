@@ -5,6 +5,8 @@ import pandas as pd
 import mplfinance as mpf
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+from datetime import datetime, timezone, timedelta
+import os
 
 # -------- CONFIG --------
 BINANCE_REST = 'https://data-api.binance.vision'
@@ -22,6 +24,67 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 session = requests.Session()
 session.headers.update({'User-Agent': 'binance-candles-to-png/1.0'})
 
+# Add this near top of charts_gridlines_sessions.py
+STATE_FILE = "last_run_slot.txt"
+
+
+def get_latest_slot(now):
+    """
+    Slots every hour:
+    xx:01
+    xx:31
+    Return latest slot already passed.
+    """
+    hour = now.replace(minute=0, second=0, microsecond=0)
+
+    slot1 = hour.replace(minute=1)
+    slot2 = hour.replace(minute=31)
+
+    if now >= slot2:
+        return slot2
+    elif now >= slot1:
+        return slot1
+    else:
+        prev_hour = hour - timedelta(hours=1)
+        return prev_hour.replace(minute=31)
+
+
+def read_last_slot():
+    if not os.path.exists(STATE_FILE):
+        return None
+
+    with open(STATE_FILE, "r") as f:
+        txt = f.read().strip()
+
+    if not txt:
+        return None
+
+    return datetime.fromisoformat(txt)
+
+
+def write_last_slot(slot_time):
+    with open(STATE_FILE, "w") as f:
+        f.write(slot_time.isoformat())
+
+
+def should_run_recovery():
+    now = datetime.now(timezone.utc)
+    latest_slot = get_latest_slot(now)
+
+    last_done = read_last_slot()
+
+    # Never ran before
+    if last_done is None:
+        write_last_slot(latest_slot)
+        return True
+
+    # New slot pending
+    if latest_slot > last_done:
+        write_last_slot(latest_slot)
+        return True
+
+    return False
+# End of above newly added part
 
 def fetch_klines(symbol, interval=INTERVAL, limit=CANDLES_LIMIT):
     url = BINANCE_REST + '/api/v3/klines'
@@ -286,8 +349,11 @@ def run_scan():
     print('Saved:', processed)
     print('Skipped:', len(skipped))
 
-def main():
-    run_scan()
+# Replace your main() with this
 
-if __name__ == '__main__':
-    main()
+def main():
+    if should_run_recovery():
+        print("Pending slot found. Running scan now...")
+        run_scan()
+    else:
+        print("No pending slot. Skip run.")
