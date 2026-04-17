@@ -357,3 +357,5 @@ def main():
         run_scan()
     else:
         print("No pending slot. Skip run.")
+if __name__ == "__main__":
+    main()
