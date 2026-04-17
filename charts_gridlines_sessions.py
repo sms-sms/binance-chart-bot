@@ -6,6 +6,7 @@ import mplfinance as mpf
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import os
 
 # -------- CONFIG --------
@@ -27,6 +28,12 @@ session.headers.update({'User-Agent': 'binance-candles-to-png/1.0'})
 # Add this near top of charts_gridlines_sessions.py
 STATE_FILE = "last_run_slot.txt"
 
+
+def write_heartbeat():
+    now = datetime.now(timezone.utc)
+
+    with open("heartbeat.txt", "a") as f:
+        f.write(now.isoformat() + "\n")
 
 def get_latest_slot(now):
     """
@@ -352,6 +359,8 @@ def run_scan():
 # Replace your main() with this
 
 def main():
+    write_heartbeat()
+
     if should_run_recovery():
         print("Pending slot found. Running scan now...")
         run_scan()
