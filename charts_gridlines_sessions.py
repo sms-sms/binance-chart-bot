@@ -266,7 +266,7 @@ def run_scan():
             continue
 
         try:
-            outpath = "test.png"
+            outpath = save_candlestick_image(df, symbol)
 
             if outpath:
                 print(f'[ok] {symbol} -> {outpath}')
