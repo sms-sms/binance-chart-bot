@@ -161,7 +161,7 @@ def build_trade_message(df, symbol, direction, p_idx, q_idx, sh, sl):
         msg = f"""
 Pair: {symbol}
 Trade: Short (Sell)
-Entry price: between {format_price(entry_low)} and {format_price(entry_high)}
+Entry price: {format_price(entry_low)}-{format_price(entry_high)}
 
 Trade size:
   Trade A: $ {format_price(trade_a)}
@@ -188,7 +188,7 @@ TP: {format_price(tp)}
         msg = f"""
 Pair: {symbol}
 Trade: Long (Buy)
-Entry price: between {format_price(entry_low)} and {format_price(entry_high)}
+Entry price: {format_price(entry_low)} - {format_price(entry_high)}
 
 Trade size:
   Trade A: $ {format_price(trade_a)}
