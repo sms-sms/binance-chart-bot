@@ -76,46 +76,116 @@ def get_session_extremes_with_index(df):
     }
 
 
-def check_break_condition(df, sh, sl, lookback=5, shift=0):
+def check_break_condition(df, sh, sl, lookback=5, shift=7):
     if sh is None or sl is None:
-        return False, None
+        return False, None, None, None
 
-    # Need enough candles
     if len(df) < (lookback + 2 + shift):
-        return False, None
+        return False, None, None, None
 
-    # Simulated "last closed candle"
-    last = df.iloc[-2 - shift]
+    last_idx = -2 - shift
+    last = df.iloc[last_idx]
     last_close = last['close']
-    last_high = last['high']
-    last_low = last['low']
 
-    # Lookback candles before that
     recent = df.iloc[-(lookback + 2 + shift):-(2 + shift)]
 
-    # -------- SWEEP --------
+    # -------- BEARISH SWEEP --------
     if (recent['close'] > sh).any() and last_close < sh:
-        return True, 'bearish_sweep'
+      q_idx = df.index[last_idx]
 
+      df_before_q = df.loc[:q_idx]
+
+      p_candidates = df_before_q[df_before_q['close'] > sh]
+
+      if p_candidates.empty:
+         return False, None, None, None
+
+      p_idx = p_candidates.index[-1]
+
+      return True, 'bearish_sweep', p_idx, q_idx
+
+
+    # -------- BULLISH SWEEP --------
     if (recent['close'] < sl).any() and last_close > sl:
-        return True, 'bullish_sweep'
+     q_idx = df.index[last_idx]
 
-    # -------- BREAK --------
-    if (
-        last_high > sh and
-        last_close > sh and
-        not (recent['close'] > sh).any()
-    ):
-        return True, 'bullish_break'
+      # find p ONLY before q
+     df_before_q = df.loc[:q_idx]
 
-    if (
-        last_low < sl and
-        last_close < sl and
-        not (recent['close'] < sl).any()
-    ):
-        return True, 'bearish_break'
+     p_candidates = df_before_q[df_before_q['close'] < sl]
 
-    return False, None
+     if p_candidates.empty:
+       return False, None, None, None
+
+     p_idx = p_candidates.index[-1]
+
+     return True, 'bullish_sweep', p_idx, q_idx
+
+    return False, None, None, None
+
+def build_trade_message(df, symbol, direction, p_idx, q_idx, sh, sl):
+    segment = df.loc[p_idx:q_idx]
+
+    q_close = df.loc[q_idx, 'close']
+
+    if direction == 'bearish_sweep':
+        x = segment['high'].max()
+
+        entry_low = q_close
+        entry_high = sh
+
+        risk = x - q_close
+
+        trade_a = (10 * q_close) / risk
+        trade_b = (2.5 * q_close) / risk
+
+        sl_price = x + (0.0005 * x)
+        tp = q_close - (2 * (sl_price - q_close))
+
+        msg = f"""
+Pair: {symbol}
+Trade: Short (Sell)
+Entry price: between {entry_low:.4f} and {entry_high:.4f}
+
+Trade size:
+  Trade A: {trade_a:.4f}
+  Trade B: {trade_b:.4f}
+
+SL: {sl_price:.4f}
+TP: {tp:.4f}
+"""
+
+    elif direction == 'bullish_sweep':
+        x = segment['low'].min()
+
+        entry_low = sl
+        entry_high = q_close
+
+        risk = q_close - x
+
+        trade_a = (10 * q_close) / risk
+        trade_b = (2.5 * q_close) / risk
+
+        sl_price = x - (0.0005 * x)
+        tp = q_close + (2 * (q_close - sl_price))
+
+        msg = f"""
+Pair: {symbol}
+Trade: Long (Buy)
+Entry price: between {entry_low:.4f} and {entry_high:.4f}
+
+Trade size:
+  Trade A: {trade_a:.4f}
+  Trade B: {trade_b:.4f}
+
+SL: {sl_price:.4f}
+TP: {tp:.4f}
+"""
+
+    else:
+        return None
+
+    return msg
 
 
 def save_candlestick_image(df, symbol):
@@ -127,11 +197,12 @@ def save_candlestick_image(df, symbol):
     sh = session_data['high']
     sl = session_data['low']
 
-    valid, direction = check_break_condition(df, sh, sl)
+    valid, direction, p_idx, q_idx = check_break_condition(df, sh, sl)
 
     if not valid:
         return None
 
+    trade_message = build_trade_message(df, symbol, direction, p_idx, q_idx, sh, sl)
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M')
     filename = f"{symbol}_{direction}_{timestamp}.png"
     outpath = os.path.join(OUTPUT_DIR, filename)
@@ -221,6 +292,9 @@ def save_candlestick_image(df, symbol):
     fig.savefig(outpath, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
+    if trade_message:
+        send_telegram_message(trade_message)
+
     return outpath
 
 
@@ -243,6 +317,23 @@ def send_telegram_photo(file_path):
         r = requests.post(url, data={"chat_id": chat_id}, files={"photo": f})
 
     print("Telegram status:", r.status_code)
+
+def send_telegram_message(text):
+    import os
+    import requests
+
+    token = os.environ.get("TELEGRAM_TOKEN")
+    chat_id = os.environ.get("CHAT_ID")
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    r = requests.post(url, data={"chat_id": chat_id, "text": text})
+
+    print("\n--- TRADE SIGNAL ---")
+    print(text)
+    print("--------------------")
+
+    print("Telegram message status:", r.status_code)
 
 def run_scan():
     print('\n=== NEW SCAN STARTED ===')
