@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
 # -------- CONFIG --------
-BINANCE_REST = 'https://data-api.binance.vision'
+BINANCE_REST = 'https://fapi.binance.com'
 INTERVAL = '30m'
 CANDLES_LIMIT = 150
 OUTPUT_DIR = 'images'
@@ -24,7 +24,7 @@ session.headers.update({'User-Agent': 'binance-candles-to-png/1.0'})
 
 
 def fetch_klines(symbol, interval=INTERVAL, limit=CANDLES_LIMIT):
-    url = BINANCE_REST + '/api/v3/klines'
+    url = BINANCE_REST + '/fapi/v1/klines'
     params = {'symbol': symbol, 'interval': interval, 'limit': limit}
     r = session.get(url, params=params, timeout=20)
     r.raise_for_status()
