@@ -164,8 +164,8 @@ Trade: Short (Sell)
 Entry price: between {format_price(entry_low)} and {format_price(entry_high)}
 
 Trade size:
-  Trade A: ${format_price(trade_a)}
-  Trade B: ${format_price(trade_b)}
+  Trade A: $ {format_price(trade_a)}
+  Trade B: $ {format_price(trade_b)}
 
 SL: {format_price(sl_price)}
 TP: {format_price(tp)}
@@ -191,8 +191,8 @@ Trade: Long (Buy)
 Entry price: between {format_price(entry_low)} and {format_price(entry_high)}
 
 Trade size:
-  Trade A: ${format_price(trade_a)}
-  Trade B: ${format_price(trade_b)}
+  Trade A: $ {format_price(trade_a)}
+  Trade B: $ {format_price(trade_b)}
 
 SL: {format_price(sl_price)}
 TP: {format_price(tp)}
