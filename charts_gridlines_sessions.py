@@ -123,6 +123,22 @@ def check_break_condition(df, sh, sl, lookback=5, shift=7):
 
     return False, None, None, None
 
+def format_price(value):
+    if value is None or pd.isna(value):
+        return "nan"
+
+    int_part = int(abs(value))
+
+    if int_part < 10:
+        return f"{value:.3f}"
+    elif int_part < 100:
+        return f"{value:.2f}"
+    elif int_part < 1000:
+        return f"{value:.1f}"
+    else:
+        return f"{value:.0f}"
+
+
 def build_trade_message(df, symbol, direction, p_idx, q_idx, sh, sl):
     segment = df.loc[p_idx:q_idx]
 
@@ -145,14 +161,14 @@ def build_trade_message(df, symbol, direction, p_idx, q_idx, sh, sl):
         msg = f"""
 Pair: {symbol}
 Trade: Short (Sell)
-Entry price: between {entry_low:.4f} and {entry_high:.4f}
+Entry price: between {format_price(entry_low)} and {format_price(entry_high)}
 
 Trade size:
-  Trade A: {trade_a:.4f}
-  Trade B: {trade_b:.4f}
+  Trade A: {format_price(trade_a)}
+  Trade B: {format_price(trade_b)}
 
-SL: {sl_price:.4f}
-TP: {tp:.4f}
+SL: {format_price(sl_price)}
+TP: {format_price(tp)}
 """
 
     elif direction == 'bullish_sweep':
@@ -172,14 +188,14 @@ TP: {tp:.4f}
         msg = f"""
 Pair: {symbol}
 Trade: Long (Buy)
-Entry price: between {entry_low:.4f} and {entry_high:.4f}
+Entry price: between {format_price(entry_low)} and {format_price(entry_high)}
 
 Trade size:
-  Trade A: {trade_a:.4f}
-  Trade B: {trade_b:.4f}
+  Trade A: {format_price(trade_a)}
+  Trade B: {format_price(trade_b)}
 
-SL: {sl_price:.4f}
-TP: {tp:.4f}
+SL: {format_price(sl_price)}
+TP: {format_price(tp)}
 """
 
     else:
